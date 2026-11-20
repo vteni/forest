@@ -27,7 +27,7 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-        boy.y = height - groundHeight - boy.height + 10;
+        boy.y = height - groundHeight - boy.height;
     });
 
     const images = {
@@ -37,38 +37,36 @@
 
     let gameLoop;
     let score = 0;
-    
-    // --- РЕКОРД ---
-    // Загружаем рекорд из памяти браузера (если там пусто, ставим 0)
     let highScore = parseInt(localStorage.getItem('runForestHighScore')) || 0;
-    
     let obstacles = [];
     let frameCounter = 0;
     
-    let baseGameSpeed = width * 0.006; 
+    // --- СКОРОСТЬ УВЕЛИЧЕНА (Было 0.006, стало 0.009) ---
+    let baseGameSpeed = width * 0.009; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
-    // --- УВЕЛИЧЕНИЕ РАЗМЕРА ПЕРСОНАЖА НА 40% ---
-    // Было 140x200, стало 196x280
+    // --- ПЕРСОНАЖ ---
     const boy = {
         x: width * 0.15, 
         y: 0, 
         width: 196, 
         height: 280,
         vy: 0, 
-        gravity: 1.2,           
-        jumpForce: -18,         
-        doubleJumpForce: -15,   
+        gravity: 1.4,       // Чуть быстрее падает
+        jumpForce: -25,     // УВЕЛИЧЕНА СИЛА ПРЫЖКА
+        doubleJumpForce: -20, 
         isJumping: false,
         hasDoubleJumped: false
     };
 
-    let bgX = 0;
-    const groundHeight = height * 0.30; 
-    boy.y = height - groundHeight - boy.height + 10;
+    // --- ЗЕМЛЯ ---
+    // Привязываем землю так, чтобы ноги стояли на траве фона.
+    // 0.32 значит, что земля занимает 32% высоты экрана снизу.
+    const groundHeight = height * 0.32; 
+    boy.y = height - groundHeight - boy.height;
 
     let canRestart = true; 
 
@@ -90,7 +88,6 @@
         } else if (!boy.hasDoubleJumped) {
             boy.vy = boy.doubleJumpForce; 
             boy.hasDoubleJumped = true; 
-            // Кувырок убран
         }
     }
 
@@ -108,12 +105,12 @@
             else { obsWidth = 120; obsHeight = 70; }
         }
 
-        // УВЕЛИЧИВАЕМ ПРЕПЯТСТВИЯ НА 40%
+        // Увеличиваем препятствия
         obsWidth = obsWidth * 1.4;
         obsHeight = obsHeight * 1.4;
 
-        let obsY = height - groundHeight - obsHeight + 10;
-        if (type === 'woman') obsY = height - groundHeight - obsHeight + 10;
+        // Привязка препятствий к земле (ставим их ровно на линию травы)
+        let obsY = height - groundHeight - obsHeight;
 
         obstacles.push({ x: width + 50, y: obsY, width: obsWidth, height: obsHeight, type: type, isMoving: isMoving, passed: false });
     }
@@ -121,6 +118,7 @@
     function draw() {
         ctx.clearRect(0, 0, width, height);
 
+        // Фон
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -131,11 +129,12 @@
             if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
         } else { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, width, height); }
 
-        // Отрисовка мальчика (без вращения)
+        // Мальчик
         if (images.boy.complete && images.boy.naturalWidth > 0) {
             ctx.drawImage(images.boy, boy.x, boy.y, boy.width, boy.height);
         } else { ctx.fillStyle = 'blue'; ctx.fillRect(boy.x, boy.y, boy.width, boy.height); }
 
+        // Препятствия
         obstacles.forEach(obs => {
             let img = images[obs.type];
             if (img.complete && img.naturalWidth > 0) {
@@ -145,16 +144,15 @@
             } else { ctx.fillStyle = 'red'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height); }
         });
 
-        // --- ОТРИСОВКА СЧЕТА И РЕКОРДА ---
+        // Очки и Рекорд
         ctx.fillStyle = isAlternateBg ? 'white' : 'black';
         ctx.font = `bold ${width * 0.06}px Arial`;
         ctx.textAlign = 'left';
         ctx.fillText('Очки: ' + score, 20, height * 0.1);
         
-        // Справа сверху выводим рекорд
         ctx.textAlign = 'right';
         ctx.fillText('Рекорд: ' + highScore, width - 20, height * 0.1);
-        ctx.textAlign = 'left'; // Возвращаем по умолчанию
+        ctx.textAlign = 'left'; 
 
         if (isGameOver) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, width, height);
@@ -169,16 +167,19 @@
     function update() {
         if (isGameOver) return;
 
+        // Физика
         boy.y += boy.vy;
         boy.vy += boy.gravity;
 
-        if (boy.y >= height - groundHeight - boy.height + 10) {
-            boy.y = height - groundHeight - boy.height + 10;
+        // Приземление (строго на линию травы)
+        if (boy.y >= height - groundHeight - boy.height) {
+            boy.y = height - groundHeight - boy.height;
             boy.vy = 0; 
             boy.isJumping = false;
             boy.hasDoubleJumped = false;
         }
 
+        // Движение фона
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -186,6 +187,7 @@
             if (bgX <= -bgW) { bgX = 0; }
         }
 
+        // Логика препятствий
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let obs = obstacles[i];
             obs.x -= gameSpeed;
@@ -194,29 +196,30 @@
             if (!obs.passed && obs.x + obs.width < boy.x) {
                 obs.passed = true;
                 score++;
-                
-                // Если текущий счет больше рекорда, обновляем его и сохраняем
                 if (score > highScore) {
                     highScore = score;
                     localStorage.setItem('runForestHighScore', highScore);
                 }
-
                 if (score % 10 === 0) isAlternateBg = !isAlternateBg; 
                 if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
-            // --- ЧЕСТНЫЙ ХИТБОКС ---
-            // Учитываем новые (увеличенные) размеры
-            let boyHitX = boy.x + (boy.width * 0.25);
-            let boyHitY = boy.y + (boy.height * 0.75); 
-            let boyHitW = boy.width * 0.5;
-            let boyHitH = boy.height * 0.25;
+            // --- ИСПРАВЛЕННЫЙ ЧЕСТНЫЙ ХИТБОКС ---
+            // Хитбокс мальчика: берем только его ступни (нижние 15% картинки)
+            // и убираем пустоту по бокам (по 20% с каждой стороны)
+            let boyHitX = boy.x + (boy.width * 0.3);
+            let boyHitY = boy.y + (boy.height * 0.85); 
+            let boyHitW = boy.width * 0.4;
+            let boyHitH = boy.height * 0.15;
 
-            let obsHitX = obs.x + (obs.width * 0.15);
-            let obsHitY = obs.y + (obs.height * 0.05); 
-            let obsHitW = obs.width * 0.7;             
-            let obsHitH = obs.height * 0.95;           
+            // Хитбокс препятствия: убираем прозрачные поля
+            // (отступаем 20% слева и справа, и 10% сверху)
+            let obsHitX = obs.x + (obs.width * 0.2);
+            let obsHitY = obs.y + (obs.height * 0.1); 
+            let obsHitW = obs.width * 0.6;             
+            let obsHitH = obs.height * 0.9;           
 
+            // Проверка столкновения
             if (
                 boyHitX < obsHitX + obsHitW &&
                 boyHitX + boyHitW > obsHitX &&
@@ -229,6 +232,7 @@
             if (obs.x + obs.width < -100) obstacles.splice(i, 1);
         }
 
+        // Спавн
         if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < width - (width * 0.7)) {
             if (frameCounter % 10 === 9 && obstacles.length > 0) { /* Пропуск */ } 
             else { spawnObstacle(); }
@@ -249,11 +253,14 @@
         frameCounter = 0;
         isGameOver = false; 
         isAlternateBg = false;
-        boy.y = height - groundHeight - boy.height + 10; 
+        
+        // Возвращаем на землю
+        boy.y = height - groundHeight - boy.height; 
         boy.vy = 0; 
         boy.isJumping = false;
         boy.hasDoubleJumped = false;
         bgX = 0;
+        
         gameStep();
         setTimeout(() => { canRestart = true; }, 1000);
     }
