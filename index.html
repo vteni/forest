@@ -33,7 +33,14 @@
     const images = {
         bg: new Image(), boy: new Image(), rock: new Image(), puddle: new Image(), woman: new Image()
     };
-    images.bg.src = 'bg.png'; images.boy.src = 'boy.png'; images.rock.src = 'rock.png'; images.puddle.src = 'puddle.png'; images.woman.src = 'woman.png';
+    
+    // ВАЖНО: Если картинки лежат в корне репозитория, пути остаются такими.
+    // Если в папке img, то будет 'img/bg.png' и т.д.
+    images.bg.src = 'bg.png'; 
+    images.boy.src = 'boy.png'; 
+    images.rock.src = 'rock.png'; 
+    images.puddle.src = 'puddle.png'; 
+    images.woman.src = 'woman.png';
 
     let gameLoop;
     let score = 0;
@@ -41,30 +48,18 @@
     let obstacles = [];
     let frameCounter = 0;
     
-    // --- СКОРОСТЬ УВЕЛИЧЕНА (Было 0.006, стало 0.009) ---
     let baseGameSpeed = width * 0.009; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
-    // --- ПЕРСОНАЖ ---
     const boy = {
-        x: width * 0.15, 
-        y: 0, 
-        width: 196, 
-        height: 280,
-        vy: 0, 
-        gravity: 1.4,       // Чуть быстрее падает
-        jumpForce: -25,     // УВЕЛИЧЕНА СИЛА ПРЫЖКА
-        doubleJumpForce: -20, 
-        isJumping: false,
-        hasDoubleJumped: false
+        x: width * 0.15, y: 0, width: 196, height: 280,
+        vy: 0, gravity: 1.4, jumpForce: -25, doubleJumpForce: -20, 
+        isJumping: false, hasDoubleJumped: false
     };
 
-    // --- ЗЕМЛЯ ---
-    // Привязываем землю так, чтобы ноги стояли на траве фона.
-    // 0.32 значит, что земля занимает 32% высоты экрана снизу.
     const groundHeight = height * 0.32; 
     boy.y = height - groundHeight - boy.height;
 
@@ -72,22 +67,14 @@
 
     function handleJump(e) {
         if (e) e.preventDefault();
-        
         if (isGameOver) {
-            if (canRestart) { 
-                canRestart = false; 
-                resetGame(); 
-            }
+            if (canRestart) { canRestart = false; resetGame(); }
             return; 
         }
-        
         if (!boy.isJumping) {
-            boy.vy = boy.jumpForce; 
-            boy.isJumping = true; 
-            boy.hasDoubleJumped = false; 
+            boy.vy = boy.jumpForce; boy.isJumping = true; boy.hasDoubleJumped = false; 
         } else if (!boy.hasDoubleJumped) {
-            boy.vy = boy.doubleJumpForce; 
-            boy.hasDoubleJumped = true; 
+            boy.vy = boy.doubleJumpForce; boy.hasDoubleJumped = true; 
         }
     }
 
@@ -96,7 +83,6 @@
     function spawnObstacle() {
         frameCounter++;
         let type = 'rock', isMoving = false, obsWidth = 90, obsHeight = 70;
-
         if (frameCounter % 10 === 0) {
             type = 'woman'; isMoving = true; obsWidth = 90; obsHeight = 180;
         } else {
@@ -104,21 +90,15 @@
             if (type === 'rock') { obsWidth = 100; obsHeight = 80; }
             else { obsWidth = 120; obsHeight = 70; }
         }
-
-        // Увеличиваем препятствия
-        obsWidth = obsWidth * 1.4;
-        obsHeight = obsHeight * 1.4;
-
-        // Привязка препятствий к земле (ставим их ровно на линию травы)
+        obsWidth *= 1.4; obsHeight *= 1.4;
         let obsY = height - groundHeight - obsHeight;
-
         obstacles.push({ x: width + 50, y: obsY, width: obsWidth, height: obsHeight, type: type, isMoving: isMoving, passed: false });
     }
 
     function draw() {
         ctx.clearRect(0, 0, width, height);
 
-        // Фон
+        // ФОН
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -127,29 +107,40 @@
             ctx.drawImage(images.bg, bgX, bgY, bgW, bgH);
             ctx.drawImage(images.bg, bgX + bgW, bgY, bgW, bgH);
             if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
-        } else { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, width, height); }
+        } else {
+            // Если фона нет, рисуем голубой фон (чтобы не было пустоты)
+            ctx.fillStyle = '#87CEEB'; 
+            ctx.fillRect(0, 0, width, height); 
+        }
 
-        // Мальчик
+        // МАЛЬЧИК
         if (images.boy.complete && images.boy.naturalWidth > 0) {
             ctx.drawImage(images.boy, boy.x, boy.y, boy.width, boy.height);
-        } else { ctx.fillStyle = 'blue'; ctx.fillRect(boy.x, boy.y, boy.width, boy.height); }
+        } else {
+            // Если картинки нет, рисуем синий прямоугольник
+            ctx.fillStyle = 'blue'; 
+            ctx.fillRect(boy.x, boy.y, boy.width, boy.height); 
+        }
 
-        // Препятствия
+        // ПРЕПЯТСТВИЯ
         obstacles.forEach(obs => {
             let img = images[obs.type];
             if (img.complete && img.naturalWidth > 0) {
                 ctx.filter = isAlternateBg ? 'brightness(1.6) contrast(1.2)' : 'none';
                 ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
                 ctx.filter = 'none';
-            } else { ctx.fillStyle = 'red'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height); }
+            } else {
+                // Если картинки нет, рисуем красный прямоугольник
+                ctx.fillStyle = 'red'; 
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height); 
+            }
         });
 
-        // Очки и Рекорд
+        // ТЕКСТ
         ctx.fillStyle = isAlternateBg ? 'white' : 'black';
         ctx.font = `bold ${width * 0.06}px Arial`;
         ctx.textAlign = 'left';
         ctx.fillText('Очки: ' + score, 20, height * 0.1);
-        
         ctx.textAlign = 'right';
         ctx.fillText('Рекорд: ' + highScore, width - 20, height * 0.1);
         ctx.textAlign = 'left'; 
@@ -167,19 +158,14 @@
     function update() {
         if (isGameOver) return;
 
-        // Физика
         boy.y += boy.vy;
         boy.vy += boy.gravity;
 
-        // Приземление (строго на линию травы)
         if (boy.y >= height - groundHeight - boy.height) {
             boy.y = height - groundHeight - boy.height;
-            boy.vy = 0; 
-            boy.isJumping = false;
-            boy.hasDoubleJumped = false;
+            boy.vy = 0; boy.isJumping = false; boy.hasDoubleJumped = false;
         }
 
-        // Движение фона
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -187,7 +173,6 @@
             if (bgX <= -bgW) { bgX = 0; }
         }
 
-        // Логика препятствий
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let obs = obstacles[i];
             obs.x -= gameSpeed;
@@ -196,78 +181,47 @@
             if (!obs.passed && obs.x + obs.width < boy.x) {
                 obs.passed = true;
                 score++;
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem('runForestHighScore', highScore);
-                }
+                if (score > highScore) { highScore = score; localStorage.setItem('runForestHighScore', highScore); }
                 if (score % 10 === 0) isAlternateBg = !isAlternateBg; 
                 if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
-            // --- ИСПРАВЛЕННЫЙ ЧЕСТНЫЙ ХИТБОКС ---
-            // Хитбокс мальчика: берем только его ступни (нижние 15% картинки)
-            // и убираем пустоту по бокам (по 20% с каждой стороны)
             let boyHitX = boy.x + (boy.width * 0.3);
             let boyHitY = boy.y + (boy.height * 0.85); 
             let boyHitW = boy.width * 0.4;
             let boyHitH = boy.height * 0.15;
 
-            // Хитбокс препятствия: убираем прозрачные поля
-            // (отступаем 20% слева и справа, и 10% сверху)
             let obsHitX = obs.x + (obs.width * 0.2);
             let obsHitY = obs.y + (obs.height * 0.1); 
             let obsHitW = obs.width * 0.6;             
             let obsHitH = obs.height * 0.9;           
 
-            // Проверка столкновения
-            if (
-                boyHitX < obsHitX + obsHitW &&
-                boyHitX + boyHitW > obsHitX &&
-                boyHitY < obsHitY + obsHitH &&
-                boyHitY + boyHitH > obsHitY
-            ) {
+            if (boyHitX < obsHitX + obsHitW && boyHitX + boyHitW > obsHitX && boyHitY < obsHitY + obsHitH && boyHitY + boyHitH > obsHitY) {
                 isGameOver = true;
             }
 
             if (obs.x + obs.width < -100) obstacles.splice(i, 1);
         }
 
-        // Спавн
         if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < width - (width * 0.7)) {
-            if (frameCounter % 10 === 9 && obstacles.length > 0) { /* Пропуск */ } 
+            if (frameCounter % 10 === 9 && obstacles.length > 0) { } 
             else { spawnObstacle(); }
         }
     }
 
-    function gameStep() {
-        update();
-        draw();
-        gameLoop = requestAnimationFrame(gameStep);
-    }
+    function gameStep() { update(); draw(); gameLoop = requestAnimationFrame(gameStep); }
 
     function resetGame() {
         if (gameLoop) cancelAnimationFrame(gameLoop);
-        score = 0; 
-        gameSpeed = baseGameSpeed; 
-        obstacles = []; 
-        frameCounter = 0;
-        isGameOver = false; 
-        isAlternateBg = false;
-        
-        // Возвращаем на землю
-        boy.y = height - groundHeight - boy.height; 
-        boy.vy = 0; 
-        boy.isJumping = false;
-        boy.hasDoubleJumped = false;
+        score = 0; gameSpeed = baseGameSpeed; obstacles = []; frameCounter = 0;
+        isGameOver = false; isAlternateBg = false;
+        boy.y = height - groundHeight - boy.height; boy.vy = 0; boy.isJumping = false; boy.hasDoubleJumped = false;
         bgX = 0;
-        
         gameStep();
         setTimeout(() => { canRestart = true; }, 1000);
     }
 
-    window.onload = () => {
-        setTimeout(() => { gameStep(); }, 100);
-    };
+    window.onload = () => { setTimeout(() => { gameStep(); }, 100); };
 </script>
 </body>
 </html>
