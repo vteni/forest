@@ -40,15 +40,21 @@
     let obstacles = [];
     let frameCounter = 0;
     
-    let baseGameSpeed = width * 0.003; 
+    // --- 1. СКОРОСТЬ УВЕЛИЧЕНА В 2 РАЗА ---
+    let baseGameSpeed = width * 0.006; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
+    // --- 2. ФИЗИКА ПРЫЖКА (НИЖЕ И С ДВОЙНЫМ ПРЫЖКОМ) ---
     const boy = {
         x: width * 0.15, y: 0, width: 140, height: 200,
-        vy: 0, gravity: 0.9, jumpForce: -20, isJumping: false,
+        vy: 0, 
+        gravity: 1.2,           // Чуть быстрее падает
+        jumpForce: -18,         // Обычный прыжок (ниже, чем был)
+        doubleJumpForce: -15,   // Второй прыжок (еще ниже, чтобы не улетать)
+        isJumping: false,
         jumpCount: 0, maxJumps: 2, rotation: 0, rotationSpeed: 0
     };
 
@@ -56,7 +62,6 @@
     const groundHeight = height * 0.25; 
     boy.y = height - groundHeight - boy.height + 20;
 
-    // Флаг для защиты от случайного двойного клика при рестарте
     let canRestart = true; 
 
     function handleJump(e) {
@@ -64,25 +69,24 @@
         
         if (isGameOver) {
             if (canRestart) {
-                canRestart = false; // Блокируем повторные клики
+                canRestart = false;
                 resetGame(); 
             }
             return; 
         }
         
-        // Двойной прыжок
         if (boy.jumpCount < boy.maxJumps) {
-            boy.vy = boy.jumpForce; 
+            // Если это первый прыжок - используем jumpForce, если второй - doubleJumpForce
+            boy.vy = boy.jumpCount === 0 ? boy.jumpForce : boy.doubleJumpForce; 
             boy.isJumping = true; 
             boy.jumpCount++;
             
             if (boy.jumpCount === 2) {
-                boy.rotationSpeed = 0.2; // Кувырок
+                boy.rotationSpeed = 0.2; 
             }
         }
     }
 
-    // Используем pointerdown для лучшей совместимости (мышь + тач)
     canvas.addEventListener('pointerdown', handleJump);
 
     function spawnObstacle() {
@@ -160,7 +164,6 @@
             if (Math.abs(boy.rotation) >= Math.PI * 2) { boy.rotation = 0; boy.rotationSpeed = 0; }
         }
 
-        // Приземление
         if (boy.y >= height - groundHeight - boy.height + 20) {
             boy.y = height - groundHeight - boy.height + 20;
             boy.vy = 0; 
@@ -189,8 +192,25 @@
                 if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
-            let hitBoxPadding = 30; 
-            if (boy.x + boy.width - hitBoxPadding > obs.x && boy.x + hitBoxPadding < obs.x + obs.width && boy.y + boy.height - hitBoxPadding > obs.y && boy.y + hitBoxPadding < obs.y + obs.height) {
+            // --- 3. ТОЧНЫЙ ХИТБОКС (Учитываем прозрачные края картинок) ---
+            // Мы отступаем от краев картинок, чтобы касание было только визуальным
+            let boyHitX = boy.x + 20; // Отступ слева/справа для мальчика
+            let boyHitY = boy.y + 20; // Отступ сверху/снизу для мальчика
+            let boyHitW = boy.width - 40;
+            let boyHitH = boy.height - 40;
+
+            let obsHitX = obs.x + 15; // Отступ для препятствий
+            let obsHitY = obs.y + 10;
+            let obsHitW = obs.width - 30;
+            let obsHitH = obs.height - 20;
+
+            // Проверка пересечения "сжатых" прямоугольников
+            if (
+                boyHitX < obsHitX + obsHitW &&
+                boyHitX + boyHitW > obsHitX &&
+                boyHitY < obsHitY + obsHitH &&
+                boyHitY + boyHitH > obsHitY
+            ) {
                 isGameOver = true;
             }
 
@@ -210,9 +230,7 @@
     }
 
     function resetGame() {
-        // Убиваем текущий игровой цикл (предотвращает ускорение)
         if (gameLoop) cancelAnimationFrame(gameLoop);
-        
         score = 0; 
         gameSpeed = baseGameSpeed; 
         obstacles = []; 
@@ -226,11 +244,7 @@
         boy.rotation = 0;
         boy.rotationSpeed = 0;
         bgX = 0;
-        
-        // Запускаем один новый цикл
         gameStep();
-        
-        // Разблокируем кнопку рестарта через 500мс (чтобы клик не сработал дважды)
         setTimeout(() => { canRestart = true; }, 500);
     }
 
