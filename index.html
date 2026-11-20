@@ -3,17 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Прыгающий Мальчик (Мобильная версия)</title>
+    <title>Прыгающий Мальчик</title>
     <style>
-        body {
-            margin: 0; padding: 0; overflow: hidden; background-color: #111;
-            display: flex; justify-content: center; align-items: center; height: 100vh;
-            touch-action: none; /* Отключаем зум и скролл */
-        }
-        canvas {
-            background-color: #87CEEB;
-            display: block;
-        }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #111; display: flex; justify-content: center; align-items: center; height: 100vh; touch-action: none; }
+        canvas { background-color: #87CEEB; display: block; }
     </style>
 </head>
 <body>
@@ -34,98 +27,88 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-        boy.y = height - groundHeight - boy.height;
+        boy.y = height - groundHeight - boy.height + 20;
     });
 
     const images = {
-        bg: new Image(),
-        boy: new Image(),
-        rock: new Image(),
-        puddle: new Image(),
-        woman: new Image()
+        bg: new Image(), boy: new Image(), rock: new Image(), puddle: new Image(), woman: new Image()
     };
-
-    images.bg.src = 'bg.png';
-    images.boy.src = 'boy.png';
-    images.rock.src = 'rock.png';
-    images.puddle.src = 'puddle.png';
-    images.woman.src = 'woman.png';
+    images.bg.src = 'bg.png'; images.boy.src = 'boy.png'; images.rock.src = 'rock.png'; images.puddle.src = 'puddle.png'; images.woman.src = 'woman.png';
 
     let gameLoop;
     let score = 0;
     let obstacles = [];
     let frameCounter = 0;
     
-    // --- СКОРОСТЬ (Привязана к ширине экрана, чтобы на телефоне не летало) ---
-    // 0.006 означает, что за секунду экран пересекается примерно за 6 секунд
     let baseGameSpeed = width * 0.006; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
-    // --- НАСТРОЙКИ ПЕРСОНАЖА (Еще больше размер) ---
     const boy = {
-        x: width * 0.15, // Чуть левее, чтобы было больше времени на реакцию
-        y: 0,
-        width: 110,      // Увеличен размер (было 80)
-        height: 160,     // Увеличен размер (было 120)
-        vy: 0,
-        gravity: 0.8,    // Чуть меньше гравитация для плавности
-        jumpForce: -18,  // Прыжок сбалансирован под новую гравитацию
-        isJumping: false
+        x: width * 0.15, y: 0, width: 140, height: 200,
+        vy: 0, 
+        gravity: 1.2,           
+        jumpForce: -18,         
+        doubleJumpForce: -15,   
+        isJumping: false,
+        hasDoubleJumped: false, // Флаг: использован ли двойной прыжок
+        rotation: 0, rotationSpeed: 0
     };
 
-    // --- ФОН И ЗЕМЛЯ ---
     let bgX = 0;
     const groundHeight = height * 0.25; 
     boy.y = height - groundHeight - boy.height + 20;
 
+    let canRestart = true; 
+
     function handleJump(e) {
         if (e) e.preventDefault();
-        if (isGameOver) { resetGame(); return; }
-        if (!boy.isJumping) { 
+        
+        if (isGameOver) {
+            if (canRestart) {
+                canRestart = false;
+                resetGame(); 
+            }
+            return; 
+        }
+        
+        // Логика прыжков
+        if (!boy.isJumping) {
+            // Первый прыжок
             boy.vy = boy.jumpForce; 
             boy.isJumping = true; 
+            boy.hasDoubleJumped = false; 
+        } else if (!boy.hasDoubleJumped) {
+            // Второй прыжок (доступен только один раз в воздухе)
+            boy.vy = boy.doubleJumpForce; 
+            boy.hasDoubleJumped = true; 
+            boy.rotationSpeed = 0.2; 
         }
     }
 
-    canvas.addEventListener('mousedown', handleJump);
-    canvas.addEventListener('touchstart', handleJump, {passive: false});
+    canvas.addEventListener('pointerdown', handleJump);
 
     function spawnObstacle() {
         frameCounter++;
-        let type = 'rock';
-        let isMoving = false;
-        let obsWidth = 70, obsHeight = 50;
+        let type = 'rock', isMoving = false, obsWidth = 90, obsHeight = 70;
 
         if (frameCounter % 10 === 0) {
-            type = 'woman';
-            isMoving = true;
-            obsWidth = 70; obsHeight = 150;
+            type = 'woman'; isMoving = true; obsWidth = 90; obsHeight = 180;
         } else {
             type = Math.random() > 0.5 ? 'rock' : 'puddle';
-            if (type === 'rock') { obsWidth = 80; obsHeight = 60; }
-            else { obsWidth = 100; obsHeight = 50; }
+            if (type === 'rock') { obsWidth = 100; obsHeight = 80; }
+            else { obsWidth = 120; obsHeight = 70; }
         }
 
-        let obsY = height - groundHeight - obsHeight + (type === 'woman' ? 25 : 15);
-
-        obstacles.push({
-            x: width + 50,
-            y: obsY,
-            width: obsWidth,
-            height: obsHeight,
-            type: type,
-            isMoving: isMoving,
-            passed: false
-        });
+        let obsY = height - groundHeight - obsHeight + (type === 'woman' ? 30 : 20);
+        obstacles.push({ x: width + 50, y: obsY, width: obsWidth, height: obsHeight, type: type, isMoving: isMoving, passed: false });
     }
 
     function draw() {
         ctx.clearRect(0, 0, width, height);
 
-        // --- 1. ОТРИСОВКА ДВИЖУЩЕГОСЯ ФОНА ---
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -135,52 +118,35 @@
             ctx.drawImage(images.bg, bgX, bgY, bgW, bgH);
             ctx.drawImage(images.bg, bgX + bgW, bgY, bgW, bgH);
 
-            if (isAlternateBg) {
-                ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; 
-                ctx.fillRect(0, 0, width, height);
-            }
-        } else {
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(0, 0, width, height);
-        }
+            if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
+        } else { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, width, height); }
 
-        // --- 2. ОТРИСОВКА ПЕРСОНАЖА ---
         if (images.boy.complete && images.boy.naturalWidth > 0) {
-            ctx.drawImage(images.boy, boy.x, boy.y, boy.width, boy.height);
-        } else {
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(boy.x, boy.y, boy.width, boy.height);
-        }
+            ctx.save();
+            let boyCenterX = boy.x + boy.width / 2;
+            let boyCenterY = boy.y + boy.height / 2;
+            ctx.translate(boyCenterX, boyCenterY);
+            ctx.rotate(boy.rotation);
+            ctx.drawImage(images.boy, -boy.width / 2, -boy.height / 2, boy.width, boy.height);
+            ctx.restore();
+        } else { ctx.fillStyle = 'blue'; ctx.fillRect(boy.x, boy.y, boy.width, boy.height); }
 
-        // --- 3. ОТРИСОВКА ПРЕПЯТСТВИЙ ---
         obstacles.forEach(obs => {
             let img = images[obs.type];
             if (img.complete && img.naturalWidth > 0) {
-                if (isAlternateBg) {
-                    ctx.filter = 'brightness(1.6) contrast(1.2)'; 
-                } else {
-                    ctx.filter = 'none';
-                }
+                ctx.filter = isAlternateBg ? 'brightness(1.6) contrast(1.2)' : 'none';
                 ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
                 ctx.filter = 'none';
-            } else {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-            }
+            } else { ctx.fillStyle = 'red'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height); }
         });
 
-        // --- 4. ОТРИСОВКА СЧЁТА ---
         ctx.fillStyle = isAlternateBg ? 'white' : 'black';
         ctx.font = `bold ${width * 0.08}px Arial`;
         ctx.fillText('Очки: ' + score, 20, height * 0.1);
 
-        // --- 5. ЭКРАН ПРОИГРЫША ---
         if (isGameOver) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, width, height);
-            ctx.fillStyle = 'white';
-            ctx.font = `bold ${width * 0.1}px Arial`;
-            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = 'white'; ctx.font = `bold ${width * 0.1}px Arial`; ctx.textAlign = 'center';
             ctx.fillText('Игра Окончена', width / 2, height / 2 - 20);
             ctx.font = `${width * 0.06}px Arial`;
             ctx.fillText('Нажми, чтобы начать заново', width / 2, height / 2 + 40);
@@ -191,73 +157,72 @@
     function update() {
         if (isGameOver) return;
 
-        // Физика прыжка
         boy.y += boy.vy;
         boy.vy += boy.gravity;
 
-        // Приземление
-        if (boy.y > height - groundHeight - boy.height + 20) {
-            boy.y = height - groundHeight - boy.height + 20;
-            boy.vy = 0;
-            boy.isJumping = false;
+        if (boy.rotationSpeed !== 0) {
+            boy.rotation += boy.rotationSpeed;
+            if (Math.abs(boy.rotation) >= Math.PI * 2) { boy.rotation = 0; boy.rotationSpeed = 0; }
         }
 
-        // --- ДВИЖЕНИЕ ФОНА ---
+        if (boy.y >= height - groundHeight - boy.height + 20) {
+            boy.y = height - groundHeight - boy.height + 20;
+            boy.vy = 0; 
+            boy.isJumping = false;
+            boy.hasDoubleJumped = false;
+            boy.rotation = 0;
+            boy.rotationSpeed = 0;
+        }
+
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
-            
-            bgX -= gameSpeed / 2; // Фон едет медленнее (эффект параллакса)
-            
-            if (bgX <= -bgW) {
-                bgX = 0;
-            }
+            bgX -= gameSpeed / 2; 
+            if (bgX <= -bgW) { bgX = 0; }
         }
 
-        // --- ДВИЖЕНИЕ ПРЕПЯТСТВИЙ ---
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let obs = obstacles[i];
             obs.x -= gameSpeed;
-            
-            if (obs.isMoving) {
-                obs.x -= (gameSpeed * 0.3); // Женщина движется быстрее, но не в 2 раза
-            }
+            if (obs.isMoving) obs.x -= (gameSpeed * 0.3); 
 
             if (!obs.passed && obs.x + obs.width < boy.x) {
                 obs.passed = true;
                 score++;
-                
-                if (score % 10 === 0) {
-                    isAlternateBg = !isAlternateBg; 
-                }
-
-                // Увеличение скорости каждые 5 очков (очень плавное)
-                if (score % 5 === 0) {
-                    gameSpeed += (width * 0.0005); 
-                }
+                if (score % 10 === 0) isAlternateBg = !isAlternateBg; 
+                if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
-            let hitBoxPadding = 25; // Увеличенное прощение за размер персонажа
+            // --- ЧЕСТНЫЕ ХИТБОКСЫ ---
+            // Проверяем ТОЛЬКО нижнюю часть персонажа (там, где ноги)
+            let boyHitX = boy.x + 30;           // Отступ слева
+            let boyHitY = boy.y + (boy.height * 0.6); // Верхняя граница хитбокса (60% от роста)
+            let boyHitW = boy.width - 60;       // Ширина хитбокса (только тело)
+            let boyHitH = boy.height * 0.4;     // Высота (только ноги)
+
+            // Отступы для препятствий (отсекаем прозрачные края картинок)
+            let obsHitPaddingX = 20; 
+            let obsHitPaddingY = 15;
+            let obsHitX = obs.x + obsHitPaddingX; 
+            let obsHitY = obs.y + obsHitPaddingY;
+            let obsHitW = obs.width - (obsHitPaddingX * 2);
+            let obsHitH = obs.height - obsHitPaddingY; // Низ картинки (касание земли)
+
             if (
-                boy.x + boy.width - hitBoxPadding > obs.x &&
-                boy.x + hitBoxPadding < obs.x + obs.width &&
-                boy.y + boy.height - hitBoxPadding > obs.y &&
-                boy.y + hitBoxPadding < obs.y + obs.height
+                boyHitX < obsHitX + obsHitW &&
+                boyHitX + boyHitW > obsHitX &&
+                boyHitY < obsHitY + obsHitH &&
+                boyHitY + boyHitH > obsHitY
             ) {
                 isGameOver = true;
             }
 
-            if (obs.x + obs.width < -100) {
-                obstacles.splice(i, 1);
-            }
+            if (obs.x + obs.width < -100) obstacles.splice(i, 1);
         }
 
         if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < width - (width * 0.7)) {
-            if (frameCounter % 10 === 9 && obstacles.length > 0) {
-                 // Пропускаем
-            } else {
-                spawnObstacle();
-            }
+            if (frameCounter % 10 === 9 && obstacles.length > 0) { /* Пропуск */ } 
+            else { spawnObstacle(); }
         }
     }
 
@@ -268,6 +233,9 @@
     }
 
     function resetGame() {
+        // Жестко останавливаем старый игровой цикл
+        if (gameLoop) cancelAnimationFrame(gameLoop);
+        
         score = 0; 
         gameSpeed = baseGameSpeed; 
         obstacles = []; 
@@ -277,14 +245,20 @@
         boy.y = height - groundHeight - boy.height + 20; 
         boy.vy = 0; 
         boy.isJumping = false;
+        boy.hasDoubleJumped = false;
+        boy.rotation = 0;
+        boy.rotationSpeed = 0;
         bgX = 0;
+        
+        // Запускаем один новый цикл
         gameStep();
+        
+        // Блокируем рестарт на 1 секунду, чтобы клик не сработал дважды
+        setTimeout(() => { canRestart = true; }, 1000);
     }
 
     window.onload = () => {
-        setTimeout(() => {
-            gameStep();
-        }, 100);
+        setTimeout(() => { gameStep(); }, 100);
     };
 </script>
 </body>
