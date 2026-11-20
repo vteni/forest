@@ -34,8 +34,6 @@
         bg: new Image(), boy: new Image(), rock: new Image(), puddle: new Image(), woman: new Image()
     };
     
-    // ВАЖНО: Если картинки лежат в корне репозитория, пути остаются такими.
-    // Если в папке img, то будет 'img/bg.png' и т.д.
     images.bg.src = 'bg.png'; 
     images.boy.src = 'boy.png'; 
     images.rock.src = 'rock.png'; 
@@ -53,6 +51,9 @@
     
     let isGameOver = false;
     let isAlternateBg = false;
+
+    // ВОТ ОНА, ПОТЕРЯВШАЯСЯ ПЕРЕМЕННАЯ!
+    let bgX = 0; 
 
     const boy = {
         x: width * 0.15, y: 0, width: 196, height: 280,
@@ -98,7 +99,6 @@
     function draw() {
         ctx.clearRect(0, 0, width, height);
 
-        // ФОН
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -108,21 +108,17 @@
             ctx.drawImage(images.bg, bgX + bgW, bgY, bgW, bgH);
             if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
         } else {
-            // Если фона нет, рисуем голубой фон (чтобы не было пустоты)
             ctx.fillStyle = '#87CEEB'; 
             ctx.fillRect(0, 0, width, height); 
         }
 
-        // МАЛЬЧИК
         if (images.boy.complete && images.boy.naturalWidth > 0) {
             ctx.drawImage(images.boy, boy.x, boy.y, boy.width, boy.height);
         } else {
-            // Если картинки нет, рисуем синий прямоугольник
             ctx.fillStyle = 'blue'; 
             ctx.fillRect(boy.x, boy.y, boy.width, boy.height); 
         }
 
-        // ПРЕПЯТСТВИЯ
         obstacles.forEach(obs => {
             let img = images[obs.type];
             if (img.complete && img.naturalWidth > 0) {
@@ -130,13 +126,11 @@
                 ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
                 ctx.filter = 'none';
             } else {
-                // Если картинки нет, рисуем красный прямоугольник
                 ctx.fillStyle = 'red'; 
                 ctx.fillRect(obs.x, obs.y, obs.width, obs.height); 
             }
         });
 
-        // ТЕКСТ
         ctx.fillStyle = isAlternateBg ? 'white' : 'black';
         ctx.font = `bold ${width * 0.06}px Arial`;
         ctx.textAlign = 'left';
