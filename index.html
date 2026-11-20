@@ -46,18 +46,21 @@
     let obstacles = [];
     let frameCounter = 0;
     
-    let baseGameSpeed = width * 0.009; 
+    // --- УВЕЛИЧЕННАЯ СКОРОСТЬ (было 0.009, стало 0.012) ---
+    let baseGameSpeed = width * 0.012; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
-    // ВОТ ОНА, ПОТЕРЯВШАЯСЯ ПЕРЕМЕННАЯ!
     let bgX = 0; 
 
     const boy = {
         x: width * 0.15, y: 0, width: 196, height: 280,
-        vy: 0, gravity: 1.4, jumpForce: -25, doubleJumpForce: -20, 
+        vy: 0, 
+        gravity: 1.0,       // --- УМЕНЬШЕНА ГРАВИТАЦИЯ (было 1.4) ---
+        jumpForce: -25, 
+        doubleJumpForce: -20, 
         isJumping: false, hasDoubleJumped: false
     };
 
@@ -180,15 +183,19 @@
                 if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
-            let boyHitX = boy.x + (boy.width * 0.3);
-            let boyHitY = boy.y + (boy.height * 0.85); 
-            let boyHitW = boy.width * 0.4;
-            let boyHitH = boy.height * 0.15;
+            // --- МАКСИМАЛЬНО СЖАТЫЕ ХИТБОКСЫ ---
+            
+            // Мальчик: берем только пятки (нижние 10% высоты, 20% ширины по центру)
+            let boyHitX = boy.x + (boy.width * 0.4);
+            let boyHitY = boy.y + (boy.height * 0.90); 
+            let boyHitW = boy.width * 0.2;
+            let boyHitH = boy.height * 0.10;
 
-            let obsHitX = obs.x + (obs.width * 0.2);
-            let obsHitY = obs.y + (obs.height * 0.1); 
-            let obsHitW = obs.width * 0.6;             
-            let obsHitH = obs.height * 0.9;           
+            // Препятствие: берем только "макушку" камня (верхние 80% высоты, 40% ширины по центру)
+            let obsHitX = obs.x + (obs.width * 0.3);
+            let obsHitY = obs.y; // От самого верха картинки
+            let obsHitW = obs.width * 0.4;             
+            let obsHitH = obs.height * 0.8;           
 
             if (boyHitX < obsHitX + obsHitW && boyHitX + boyHitW > obsHitX && boyHitY < obsHitY + obsHitH && boyHitY + boyHitH > obsHitY) {
                 isGameOver = true;
