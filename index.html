@@ -3,17 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Прыгающий Мальчик (Двойной прыжок)</title>
+    <title>Прыгающий Мальчик</title>
     <style>
-        body {
-            margin: 0; padding: 0; overflow: hidden; background-color: #111;
-            display: flex; justify-content: center; align-items: center; height: 100vh;
-            touch-action: none;
-        }
-        canvas {
-            background-color: #87CEEB;
-            display: block;
-        }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #111; display: flex; justify-content: center; align-items: center; height: 100vh; touch-action: none; }
+        canvas { background-color: #87CEEB; display: block; }
     </style>
 </head>
 <body>
@@ -38,86 +31,66 @@
     });
 
     const images = {
-        bg: new Image(),
-        boy: new Image(),
-        rock: new Image(),
-        puddle: new Image(),
-        woman: new Image()
+        bg: new Image(), boy: new Image(), rock: new Image(), puddle: new Image(), woman: new Image()
     };
-
-    images.bg.src = 'bg.png';
-    images.boy.src = 'boy.png';
-    images.rock.src = 'rock.png';
-    images.puddle.src = 'puddle.png';
-    images.woman.src = 'woman.png';
+    images.bg.src = 'bg.png'; images.boy.src = 'boy.png'; images.rock.src = 'rock.png'; images.puddle.src = 'puddle.png'; images.woman.src = 'woman.png';
 
     let gameLoop;
     let score = 0;
     let obstacles = [];
     let frameCounter = 0;
     
-    // --- СКОРОСТЬ ---
     let baseGameSpeed = width * 0.003; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
-    // --- НАСТРОЙКИ ПЕРСОНАЖА ---
     const boy = {
-        x: width * 0.15,
-        y: 0,
-        width: 140,      
-        height: 200,     
-        vy: 0,
-        gravity: 0.9,    
-        jumpForce: -20,  
-        isJumping: false,
-        jumpCount: 0,       // Счетчик прыжков (0 - на земле, 1 - в воздухе, 2 - двойной прыжок)
-        maxJumps: 2,        // Разрешаем максимум 2 прыжка
-        rotation: 0,        // Угол поворота для визуального эффекта
-        rotationSpeed: 0     // Скорость поворота
+        x: width * 0.15, y: 0, width: 140, height: 200,
+        vy: 0, gravity: 0.9, jumpForce: -20, isJumping: false,
+        jumpCount: 0, maxJumps: 2, rotation: 0, rotationSpeed: 0
     };
 
-    // --- ФОН И ЗЕМЛЯ ---
     let bgX = 0;
     const groundHeight = height * 0.25; 
     boy.y = height - groundHeight - boy.height + 20;
 
+    // Флаг для защиты от случайного двойного клика при рестарте
+    let canRestart = true; 
+
     function handleJump(e) {
         if (e) e.preventDefault();
         
-        if (isGameOver) { 
-            resetGame(); 
+        if (isGameOver) {
+            if (canRestart) {
+                canRestart = false; // Блокируем повторные клики
+                resetGame(); 
+            }
             return; 
         }
         
-        // Логика двойного прыжка
+        // Двойной прыжок
         if (boy.jumpCount < boy.maxJumps) {
             boy.vy = boy.jumpForce; 
             boy.isJumping = true; 
             boy.jumpCount++;
             
-            // Визуальный эффект для двойного прыжка (кувырок)
             if (boy.jumpCount === 2) {
-                boy.rotationSpeed = 0.2; // Начинаем вращение
+                boy.rotationSpeed = 0.2; // Кувырок
             }
         }
     }
 
-    canvas.addEventListener('mousedown', handleJump);
-    canvas.addEventListener('touchstart', handleJump, {passive: false});
+    // Используем pointerdown для лучшей совместимости (мышь + тач)
+    canvas.addEventListener('pointerdown', handleJump);
 
     function spawnObstacle() {
         frameCounter++;
-        let type = 'rock';
-        let isMoving = false;
-        let obsWidth = 90, obsHeight = 70;
+        let type = 'rock', isMoving = false, obsWidth = 90, obsHeight = 70;
 
         if (frameCounter % 10 === 0) {
-            type = 'woman';
-            isMoving = true;
-            obsWidth = 90; obsHeight = 180;
+            type = 'woman'; isMoving = true; obsWidth = 90; obsHeight = 180;
         } else {
             type = Math.random() > 0.5 ? 'rock' : 'puddle';
             if (type === 'rock') { obsWidth = 100; obsHeight = 80; }
@@ -125,22 +98,12 @@
         }
 
         let obsY = height - groundHeight - obsHeight + (type === 'woman' ? 30 : 20);
-
-        obstacles.push({
-            x: width + 50,
-            y: obsY,
-            width: obsWidth,
-            height: obsHeight,
-            type: type,
-            isMoving: isMoving,
-            passed: false
-        });
+        obstacles.push({ x: width + 50, y: obsY, width: obsWidth, height: obsHeight, type: type, isMoving: isMoving, passed: false });
     }
 
     function draw() {
         ctx.clearRect(0, 0, width, height);
 
-        // --- 1. ОТРИСОВКА ДВИЖУЩЕГОСЯ ФОНА ---
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
@@ -150,65 +113,35 @@
             ctx.drawImage(images.bg, bgX, bgY, bgW, bgH);
             ctx.drawImage(images.bg, bgX + bgW, bgY, bgW, bgH);
 
-            if (isAlternateBg) {
-                ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; 
-                ctx.fillRect(0, 0, width, height);
-            }
-        } else {
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(0, 0, width, height);
-        }
+            if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
+        } else { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, width, height); }
 
-        // --- 2. ОТРИСОВКА ПЕРСОНАЖА С ВРАЩЕНИЕМ ---
         if (images.boy.complete && images.boy.naturalWidth > 0) {
-            ctx.save(); // Сохраняем текущее состояние контекста
-            
-            // Вычисляем центр персонажа для вращения
+            ctx.save();
             let boyCenterX = boy.x + boy.width / 2;
             let boyCenterY = boy.y + boy.height / 2;
-            
-            // Перемещаем контекст в центр персонажа и вращаем
             ctx.translate(boyCenterX, boyCenterY);
             ctx.rotate(boy.rotation);
-            
-            // Рисуем персонажа относительно его центра
             ctx.drawImage(images.boy, -boy.width / 2, -boy.height / 2, boy.width, boy.height);
-            
-            ctx.restore(); // Восстанавливаем контекст
-        } else {
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(boy.x, boy.y, boy.width, boy.height);
-        }
+            ctx.restore();
+        } else { ctx.fillStyle = 'blue'; ctx.fillRect(boy.x, boy.y, boy.width, boy.height); }
 
-        // --- 3. ОТРИСОВКА ПРЕПЯТСТВИЙ ---
         obstacles.forEach(obs => {
             let img = images[obs.type];
             if (img.complete && img.naturalWidth > 0) {
-                if (isAlternateBg) {
-                    ctx.filter = 'brightness(1.6) contrast(1.2)'; 
-                } else {
-                    ctx.filter = 'none';
-                }
+                ctx.filter = isAlternateBg ? 'brightness(1.6) contrast(1.2)' : 'none';
                 ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
                 ctx.filter = 'none';
-            } else {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-            }
+            } else { ctx.fillStyle = 'red'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height); }
         });
 
-        // --- 4. ОТРИСОВКА СЧЁТА ---
         ctx.fillStyle = isAlternateBg ? 'white' : 'black';
         ctx.font = `bold ${width * 0.08}px Arial`;
         ctx.fillText('Очки: ' + score, 20, height * 0.1);
 
-        // --- 5. ЭКРАН ПРОИГРЫША ---
         if (isGameOver) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, width, height);
-            ctx.fillStyle = 'white';
-            ctx.font = `bold ${width * 0.1}px Arial`;
-            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = 'white'; ctx.font = `bold ${width * 0.1}px Arial`; ctx.textAlign = 'center';
             ctx.fillText('Игра Окончена', width / 2, height / 2 - 20);
             ctx.font = `${width * 0.06}px Arial`;
             ctx.fillText('Нажми, чтобы начать заново', width / 2, height / 2 + 40);
@@ -219,85 +152,54 @@
     function update() {
         if (isGameOver) return;
 
-        // Физика прыжка
         boy.y += boy.vy;
         boy.vy += boy.gravity;
 
-        // Вращение при двойном прыжке
         if (boy.rotationSpeed !== 0) {
             boy.rotation += boy.rotationSpeed;
-            // Ограничиваем вращение, чтобы персонаж не крутился бесконечно
-            if (Math.abs(boy.rotation) >= Math.PI * 2) {
-                boy.rotation = 0;
-                boy.rotationSpeed = 0;
-            }
+            if (Math.abs(boy.rotation) >= Math.PI * 2) { boy.rotation = 0; boy.rotationSpeed = 0; }
         }
 
         // Приземление
-        if (boy.y > height - groundHeight - boy.height + 20) {
+        if (boy.y >= height - groundHeight - boy.height + 20) {
             boy.y = height - groundHeight - boy.height + 20;
             boy.vy = 0; 
             boy.isJumping = false;
-            boy.jumpCount = 0; // Сбрасываем счетчик прыжков
-            boy.rotation = 0;  // Сбрасываем вращение
+            boy.jumpCount = 0; 
+            boy.rotation = 0;
             boy.rotationSpeed = 0;
         }
 
-        // --- ДВИЖЕНИЕ ФОНА ---
         if (images.bg.complete && images.bg.naturalWidth > 0) {
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
-            
             bgX -= gameSpeed / 2; 
-            
-            if (bgX <= -bgW) {
-                bgX = 0;
-            }
+            if (bgX <= -bgW) { bgX = 0; }
         }
 
-        // --- ДВИЖЕНИЕ ПРЕПЯТСТВИЙ ---
         for (let i = obstacles.length - 1; i >= 0; i--) {
             let obs = obstacles[i];
             obs.x -= gameSpeed;
-            
-            if (obs.isMoving) {
-                obs.x -= (gameSpeed * 0.3); 
-            }
+            if (obs.isMoving) obs.x -= (gameSpeed * 0.3); 
 
             if (!obs.passed && obs.x + obs.width < boy.x) {
                 obs.passed = true;
                 score++;
-                
-                if (score % 10 === 0) {
-                    isAlternateBg = !isAlternateBg; 
-                }
-
-                if (score % 5 === 0) {
-                    gameSpeed += (width * 0.0003); 
-                }
+                if (score % 10 === 0) isAlternateBg = !isAlternateBg; 
+                if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
             let hitBoxPadding = 30; 
-            if (
-                boy.x + boy.width - hitBoxPadding > obs.x &&
-                boy.x + hitBoxPadding < obs.x + obs.width &&
-                boy.y + boy.height - hitBoxPadding > obs.y &&
-                boy.y + hitBoxPadding < obs.y + obs.height
-            ) {
+            if (boy.x + boy.width - hitBoxPadding > obs.x && boy.x + hitBoxPadding < obs.x + obs.width && boy.y + boy.height - hitBoxPadding > obs.y && boy.y + hitBoxPadding < obs.y + obs.height) {
                 isGameOver = true;
             }
 
-            if (obs.x + obs.width < -100) {
-                obstacles.splice(i, 1);
-            }
+            if (obs.x + obs.width < -100) obstacles.splice(i, 1);
         }
 
         if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < width - (width * 0.7)) {
-            if (frameCounter % 10 === 9 && obstacles.length > 0) {
-                 // Пропускаем
-            } else {
-                spawnObstacle();
-            }
+            if (frameCounter % 10 === 9 && obstacles.length > 0) { /* Пропуск */ } 
+            else { spawnObstacle(); }
         }
     }
 
@@ -308,6 +210,9 @@
     }
 
     function resetGame() {
+        // Убиваем текущий игровой цикл (предотвращает ускорение)
+        if (gameLoop) cancelAnimationFrame(gameLoop);
+        
         score = 0; 
         gameSpeed = baseGameSpeed; 
         obstacles = []; 
@@ -321,12 +226,16 @@
         boy.rotation = 0;
         boy.rotationSpeed = 0;
         bgX = 0;
+        
+        // Запускаем один новый цикл
+        gameStep();
+        
+        // Разблокируем кнопку рестарта через 500мс (чтобы клик не сработал дважды)
+        setTimeout(() => { canRestart = true; }, 500);
     }
 
     window.onload = () => {
-        setTimeout(() => {
-            gameStep();
-        }, 100);
+        setTimeout(() => { gameStep(); }, 100);
     };
 </script>
 </body>
