@@ -37,6 +37,11 @@
 
     let gameLoop;
     let score = 0;
+    
+    // --- РЕКОРД ---
+    // Загружаем рекорд из памяти браузера (если там пусто, ставим 0)
+    let highScore = parseInt(localStorage.getItem('runForestHighScore')) || 0;
+    
     let obstacles = [];
     let frameCounter = 0;
     
@@ -46,15 +51,19 @@
     let isGameOver = false;
     let isAlternateBg = false;
 
+    // --- УВЕЛИЧЕНИЕ РАЗМЕРА ПЕРСОНАЖА НА 40% ---
+    // Было 140x200, стало 196x280
     const boy = {
-        x: width * 0.15, y: 0, width: 140, height: 200,
+        x: width * 0.15, 
+        y: 0, 
+        width: 196, 
+        height: 280,
         vy: 0, 
         gravity: 1.2,           
         jumpForce: -18,         
         doubleJumpForce: -15,   
         isJumping: false,
-        hasDoubleJumped: false, 
-        rotation: 0, rotationSpeed: 0
+        hasDoubleJumped: false
     };
 
     let bgX = 0;
@@ -65,10 +74,15 @@
 
     function handleJump(e) {
         if (e) e.preventDefault();
+        
         if (isGameOver) {
-            if (canRestart) { canRestart = false; resetGame(); }
+            if (canRestart) { 
+                canRestart = false; 
+                resetGame(); 
+            }
             return; 
         }
+        
         if (!boy.isJumping) {
             boy.vy = boy.jumpForce; 
             boy.isJumping = true; 
@@ -76,7 +90,7 @@
         } else if (!boy.hasDoubleJumped) {
             boy.vy = boy.doubleJumpForce; 
             boy.hasDoubleJumped = true; 
-            boy.rotationSpeed = 0.2; 
+            // Кувырок убран
         }
     }
 
@@ -93,6 +107,10 @@
             if (type === 'rock') { obsWidth = 100; obsHeight = 80; }
             else { obsWidth = 120; obsHeight = 70; }
         }
+
+        // УВЕЛИЧИВАЕМ ПРЕПЯТСТВИЯ НА 40%
+        obsWidth = obsWidth * 1.4;
+        obsHeight = obsHeight * 1.4;
 
         let obsY = height - groundHeight - obsHeight + 10;
         if (type === 'woman') obsY = height - groundHeight - obsHeight + 10;
@@ -113,14 +131,9 @@
             if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
         } else { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, width, height); }
 
+        // Отрисовка мальчика (без вращения)
         if (images.boy.complete && images.boy.naturalWidth > 0) {
-            ctx.save();
-            let boyCenterX = boy.x + boy.width / 2;
-            let boyCenterY = boy.y + boy.height / 2;
-            ctx.translate(boyCenterX, boyCenterY);
-            ctx.rotate(boy.rotation);
-            ctx.drawImage(images.boy, -boy.width / 2, -boy.height / 2, boy.width, boy.height);
-            ctx.restore();
+            ctx.drawImage(images.boy, boy.x, boy.y, boy.width, boy.height);
         } else { ctx.fillStyle = 'blue'; ctx.fillRect(boy.x, boy.y, boy.width, boy.height); }
 
         obstacles.forEach(obs => {
@@ -132,9 +145,16 @@
             } else { ctx.fillStyle = 'red'; ctx.fillRect(obs.x, obs.y, obs.width, obs.height); }
         });
 
+        // --- ОТРИСОВКА СЧЕТА И РЕКОРДА ---
         ctx.fillStyle = isAlternateBg ? 'white' : 'black';
-        ctx.font = `bold ${width * 0.08}px Arial`;
+        ctx.font = `bold ${width * 0.06}px Arial`;
+        ctx.textAlign = 'left';
         ctx.fillText('Очки: ' + score, 20, height * 0.1);
+        
+        // Справа сверху выводим рекорд
+        ctx.textAlign = 'right';
+        ctx.fillText('Рекорд: ' + highScore, width - 20, height * 0.1);
+        ctx.textAlign = 'left'; // Возвращаем по умолчанию
 
         if (isGameOver) {
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, width, height);
@@ -152,18 +172,11 @@
         boy.y += boy.vy;
         boy.vy += boy.gravity;
 
-        if (boy.rotationSpeed !== 0) {
-            boy.rotation += boy.rotationSpeed;
-            if (Math.abs(boy.rotation) >= Math.PI * 2) { boy.rotation = 0; boy.rotationSpeed = 0; }
-        }
-
         if (boy.y >= height - groundHeight - boy.height + 10) {
             boy.y = height - groundHeight - boy.height + 10;
             boy.vy = 0; 
             boy.isJumping = false;
             boy.hasDoubleJumped = false;
-            boy.rotation = 0;
-            boy.rotationSpeed = 0;
         }
 
         if (images.bg.complete && images.bg.naturalWidth > 0) {
@@ -181,24 +194,28 @@
             if (!obs.passed && obs.x + obs.width < boy.x) {
                 obs.passed = true;
                 score++;
+                
+                // Если текущий счет больше рекорда, обновляем его и сохраняем
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('runForestHighScore', highScore);
+                }
+
                 if (score % 10 === 0) isAlternateBg = !isAlternateBg; 
                 if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
             // --- ЧЕСТНЫЙ ХИТБОКС ---
-            
-            // Мальчик: берем только нижнюю часть (ноги), так как он прыгает ногами вперед
+            // Учитываем новые (увеличенные) размеры
             let boyHitX = boy.x + (boy.width * 0.25);
-            let boyHitY = boy.y + (boy.height * 0.70); // Немного подняли зону ног
+            let boyHitY = boy.y + (boy.height * 0.75); 
             let boyHitW = boy.width * 0.5;
-            let boyHitH = boy.height * 0.30;
+            let boyHitH = boy.height * 0.25;
 
-            // Препятствие: берем всю высоту (от верха до низа), 
-            // но убираем прозрачные края по бокам (отступ 15% слева и справа)
             let obsHitX = obs.x + (obs.width * 0.15);
-            let obsHitY = obs.y + (obs.height * 0.05); // Небольшой отступ сверху, если там пусто
-            let obsHitW = obs.width * 0.7;             // Ширина 70% (без пустых краев)
-            let obsHitH = obs.height * 0.95;           // Высота почти на всю картинку
+            let obsHitY = obs.y + (obs.height * 0.05); 
+            let obsHitW = obs.width * 0.7;             
+            let obsHitH = obs.height * 0.95;           
 
             if (
                 boyHitX < obsHitX + obsHitW &&
@@ -236,8 +253,6 @@
         boy.vy = 0; 
         boy.isJumping = false;
         boy.hasDoubleJumped = false;
-        boy.rotation = 0;
-        boy.rotationSpeed = 0;
         bgX = 0;
         gameStep();
         setTimeout(() => { canRestart = true; }, 1000);
