@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Прыгающий Мальчик (Мобильная версия)</title>
+    <title>Прыгающий Мальчик (Двойной прыжок)</title>
     <style>
         body {
             margin: 0; padding: 0; overflow: hidden; background-color: #111;
             display: flex; justify-content: center; align-items: center; height: 100vh;
-            touch-action: none; /* Отключаем зум и скролл */
+            touch-action: none;
         }
         canvas {
             background-color: #87CEEB;
@@ -34,7 +34,7 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-        boy.y = height - groundHeight - boy.height;
+        boy.y = height - groundHeight - boy.height + 20;
     });
 
     const images = {
@@ -56,24 +56,27 @@
     let obstacles = [];
     let frameCounter = 0;
     
-    // --- СКОРОСТЬ (Привязана к ширине экрана, чтобы на телефоне не летало) ---
-    // 0.006 означает, что за секунду экран пересекается примерно за 6 секунд
-    let baseGameSpeed = width * 0.006; 
+    // --- СКОРОСТЬ ---
+    let baseGameSpeed = width * 0.003; 
     let gameSpeed = baseGameSpeed;
     
     let isGameOver = false;
     let isAlternateBg = false;
 
-    // --- НАСТРОЙКИ ПЕРСОНАЖА (Еще больше размер) ---
+    // --- НАСТРОЙКИ ПЕРСОНАЖА ---
     const boy = {
-        x: width * 0.15, // Чуть левее, чтобы было больше времени на реакцию
+        x: width * 0.15,
         y: 0,
-        width: 110,      // Увеличен размер (было 80)
-        height: 160,     // Увеличен размер (было 120)
+        width: 140,      
+        height: 200,     
         vy: 0,
-        gravity: 0.8,    // Чуть меньше гравитация для плавности
-        jumpForce: -18,  // Прыжок сбалансирован под новую гравитацию
-        isJumping: false
+        gravity: 0.9,    
+        jumpForce: -20,  
+        isJumping: false,
+        jumpCount: 0,       // Счетчик прыжков (0 - на земле, 1 - в воздухе, 2 - двойной прыжок)
+        maxJumps: 2,        // Разрешаем максимум 2 прыжка
+        rotation: 0,        // Угол поворота для визуального эффекта
+        rotationSpeed: 0     // Скорость поворота
     };
 
     // --- ФОН И ЗЕМЛЯ ---
@@ -83,10 +86,22 @@
 
     function handleJump(e) {
         if (e) e.preventDefault();
-        if (isGameOver) { resetGame(); return; }
-        if (!boy.isJumping) { 
+        
+        if (isGameOver) { 
+            resetGame(); 
+            return; 
+        }
+        
+        // Логика двойного прыжка
+        if (boy.jumpCount < boy.maxJumps) {
             boy.vy = boy.jumpForce; 
             boy.isJumping = true; 
+            boy.jumpCount++;
+            
+            // Визуальный эффект для двойного прыжка (кувырок)
+            if (boy.jumpCount === 2) {
+                boy.rotationSpeed = 0.2; // Начинаем вращение
+            }
         }
     }
 
@@ -97,19 +112,19 @@
         frameCounter++;
         let type = 'rock';
         let isMoving = false;
-        let obsWidth = 70, obsHeight = 50;
+        let obsWidth = 90, obsHeight = 70;
 
         if (frameCounter % 10 === 0) {
             type = 'woman';
             isMoving = true;
-            obsWidth = 70; obsHeight = 150;
+            obsWidth = 90; obsHeight = 180;
         } else {
             type = Math.random() > 0.5 ? 'rock' : 'puddle';
-            if (type === 'rock') { obsWidth = 80; obsHeight = 60; }
-            else { obsWidth = 100; obsHeight = 50; }
+            if (type === 'rock') { obsWidth = 100; obsHeight = 80; }
+            else { obsWidth = 120; obsHeight = 70; }
         }
 
-        let obsY = height - groundHeight - obsHeight + (type === 'woman' ? 25 : 15);
+        let obsY = height - groundHeight - obsHeight + (type === 'woman' ? 30 : 20);
 
         obstacles.push({
             x: width + 50,
@@ -144,9 +159,22 @@
             ctx.fillRect(0, 0, width, height);
         }
 
-        // --- 2. ОТРИСОВКА ПЕРСОНАЖА ---
+        // --- 2. ОТРИСОВКА ПЕРСОНАЖА С ВРАЩЕНИЕМ ---
         if (images.boy.complete && images.boy.naturalWidth > 0) {
-            ctx.drawImage(images.boy, boy.x, boy.y, boy.width, boy.height);
+            ctx.save(); // Сохраняем текущее состояние контекста
+            
+            // Вычисляем центр персонажа для вращения
+            let boyCenterX = boy.x + boy.width / 2;
+            let boyCenterY = boy.y + boy.height / 2;
+            
+            // Перемещаем контекст в центр персонажа и вращаем
+            ctx.translate(boyCenterX, boyCenterY);
+            ctx.rotate(boy.rotation);
+            
+            // Рисуем персонажа относительно его центра
+            ctx.drawImage(images.boy, -boy.width / 2, -boy.height / 2, boy.width, boy.height);
+            
+            ctx.restore(); // Восстанавливаем контекст
         } else {
             ctx.fillStyle = 'blue';
             ctx.fillRect(boy.x, boy.y, boy.width, boy.height);
@@ -195,11 +223,24 @@
         boy.y += boy.vy;
         boy.vy += boy.gravity;
 
+        // Вращение при двойном прыжке
+        if (boy.rotationSpeed !== 0) {
+            boy.rotation += boy.rotationSpeed;
+            // Ограничиваем вращение, чтобы персонаж не крутился бесконечно
+            if (Math.abs(boy.rotation) >= Math.PI * 2) {
+                boy.rotation = 0;
+                boy.rotationSpeed = 0;
+            }
+        }
+
         // Приземление
         if (boy.y > height - groundHeight - boy.height + 20) {
             boy.y = height - groundHeight - boy.height + 20;
-            boy.vy = 0;
+            boy.vy = 0; 
             boy.isJumping = false;
+            boy.jumpCount = 0; // Сбрасываем счетчик прыжков
+            boy.rotation = 0;  // Сбрасываем вращение
+            boy.rotationSpeed = 0;
         }
 
         // --- ДВИЖЕНИЕ ФОНА ---
@@ -207,7 +248,7 @@
             let scale = Math.max(width / images.bg.width, height / images.bg.height);
             let bgW = images.bg.width * scale;
             
-            bgX -= gameSpeed / 2; // Фон едет медленнее (эффект параллакса)
+            bgX -= gameSpeed / 2; 
             
             if (bgX <= -bgW) {
                 bgX = 0;
@@ -220,7 +261,7 @@
             obs.x -= gameSpeed;
             
             if (obs.isMoving) {
-                obs.x -= (gameSpeed * 0.3); // Женщина движется быстрее, но не в 2 раза
+                obs.x -= (gameSpeed * 0.3); 
             }
 
             if (!obs.passed && obs.x + obs.width < boy.x) {
@@ -231,13 +272,12 @@
                     isAlternateBg = !isAlternateBg; 
                 }
 
-                // Увеличение скорости каждые 5 очков (очень плавное)
                 if (score % 5 === 0) {
-                    gameSpeed += (width * 0.0005); 
+                    gameSpeed += (width * 0.0003); 
                 }
             }
 
-            let hitBoxPadding = 25; // Увеличенное прощение за размер персонажа
+            let hitBoxPadding = 30; 
             if (
                 boy.x + boy.width - hitBoxPadding > obs.x &&
                 boy.x + hitBoxPadding < obs.x + obs.width &&
@@ -277,8 +317,10 @@
         boy.y = height - groundHeight - boy.height + 20; 
         boy.vy = 0; 
         boy.isJumping = false;
+        boy.jumpCount = 0;
+        boy.rotation = 0;
+        boy.rotationSpeed = 0;
         bgX = 0;
-        gameStep();
     }
 
     window.onload = () => {
