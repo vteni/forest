@@ -27,7 +27,7 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-        boy.y = height - groundHeight - boy.height + 20;
+        boy.y = height - groundHeight - boy.height + 10;
     });
 
     const images = {
@@ -53,35 +53,27 @@
         jumpForce: -18,         
         doubleJumpForce: -15,   
         isJumping: false,
-        hasDoubleJumped: false, // Флаг: использован ли двойной прыжок
+        hasDoubleJumped: false, 
         rotation: 0, rotationSpeed: 0
     };
 
     let bgX = 0;
-    const groundHeight = height * 0.25; 
-    boy.y = height - groundHeight - boy.height + 20;
+    const groundHeight = height * 0.30; 
+    boy.y = height - groundHeight - boy.height + 10;
 
     let canRestart = true; 
 
     function handleJump(e) {
         if (e) e.preventDefault();
-        
         if (isGameOver) {
-            if (canRestart) {
-                canRestart = false;
-                resetGame(); 
-            }
+            if (canRestart) { canRestart = false; resetGame(); }
             return; 
         }
-        
-        // Логика прыжков
         if (!boy.isJumping) {
-            // Первый прыжок
             boy.vy = boy.jumpForce; 
             boy.isJumping = true; 
             boy.hasDoubleJumped = false; 
         } else if (!boy.hasDoubleJumped) {
-            // Второй прыжок (доступен только один раз в воздухе)
             boy.vy = boy.doubleJumpForce; 
             boy.hasDoubleJumped = true; 
             boy.rotationSpeed = 0.2; 
@@ -102,7 +94,9 @@
             else { obsWidth = 120; obsHeight = 70; }
         }
 
-        let obsY = height - groundHeight - obsHeight + (type === 'woman' ? 30 : 20);
+        let obsY = height - groundHeight - obsHeight + 10;
+        if (type === 'woman') obsY = height - groundHeight - obsHeight + 10;
+
         obstacles.push({ x: width + 50, y: obsY, width: obsWidth, height: obsHeight, type: type, isMoving: isMoving, passed: false });
     }
 
@@ -114,10 +108,8 @@
             let bgW = images.bg.width * scale;
             let bgH = images.bg.height * scale;
             let bgY = (height - bgH) / 2;
-
             ctx.drawImage(images.bg, bgX, bgY, bgW, bgH);
             ctx.drawImage(images.bg, bgX + bgW, bgY, bgW, bgH);
-
             if (isAlternateBg) { ctx.fillStyle = 'rgba(0, 0, 60, 0.5)'; ctx.fillRect(0, 0, width, height); }
         } else { ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, width, height); }
 
@@ -165,8 +157,8 @@
             if (Math.abs(boy.rotation) >= Math.PI * 2) { boy.rotation = 0; boy.rotationSpeed = 0; }
         }
 
-        if (boy.y >= height - groundHeight - boy.height + 20) {
-            boy.y = height - groundHeight - boy.height + 20;
+        if (boy.y >= height - groundHeight - boy.height + 10) {
+            boy.y = height - groundHeight - boy.height + 10;
             boy.vy = 0; 
             boy.isJumping = false;
             boy.hasDoubleJumped = false;
@@ -193,20 +185,20 @@
                 if (score % 5 === 0) gameSpeed += (width * 0.0003); 
             }
 
-            // --- ЧЕСТНЫЕ ХИТБОКСЫ ---
-            // Проверяем ТОЛЬКО нижнюю часть персонажа (там, где ноги)
-            let boyHitX = boy.x + 30;           // Отступ слева
-            let boyHitY = boy.y + (boy.height * 0.6); // Верхняя граница хитбокса (60% от роста)
-            let boyHitW = boy.width - 60;       // Ширина хитбокса (только тело)
-            let boyHitH = boy.height * 0.4;     // Высота (только ноги)
+            // --- ЧЕСТНЫЙ ХИТБОКС ---
+            
+            // Мальчик: берем только нижнюю часть (ноги), так как он прыгает ногами вперед
+            let boyHitX = boy.x + (boy.width * 0.25);
+            let boyHitY = boy.y + (boy.height * 0.70); // Немного подняли зону ног
+            let boyHitW = boy.width * 0.5;
+            let boyHitH = boy.height * 0.30;
 
-            // Отступы для препятствий (отсекаем прозрачные края картинок)
-            let obsHitPaddingX = 20; 
-            let obsHitPaddingY = 15;
-            let obsHitX = obs.x + obsHitPaddingX; 
-            let obsHitY = obs.y + obsHitPaddingY;
-            let obsHitW = obs.width - (obsHitPaddingX * 2);
-            let obsHitH = obs.height - obsHitPaddingY; // Низ картинки (касание земли)
+            // Препятствие: берем всю высоту (от верха до низа), 
+            // но убираем прозрачные края по бокам (отступ 15% слева и справа)
+            let obsHitX = obs.x + (obs.width * 0.15);
+            let obsHitY = obs.y + (obs.height * 0.05); // Небольшой отступ сверху, если там пусто
+            let obsHitW = obs.width * 0.7;             // Ширина 70% (без пустых краев)
+            let obsHitH = obs.height * 0.95;           // Высота почти на всю картинку
 
             if (
                 boyHitX < obsHitX + obsHitW &&
@@ -233,27 +225,21 @@
     }
 
     function resetGame() {
-        // Жестко останавливаем старый игровой цикл
         if (gameLoop) cancelAnimationFrame(gameLoop);
-        
         score = 0; 
         gameSpeed = baseGameSpeed; 
         obstacles = []; 
         frameCounter = 0;
         isGameOver = false; 
         isAlternateBg = false;
-        boy.y = height - groundHeight - boy.height + 20; 
+        boy.y = height - groundHeight - boy.height + 10; 
         boy.vy = 0; 
         boy.isJumping = false;
         boy.hasDoubleJumped = false;
         boy.rotation = 0;
         boy.rotationSpeed = 0;
         bgX = 0;
-        
-        // Запускаем один новый цикл
         gameStep();
-        
-        // Блокируем рестарт на 1 секунду, чтобы клик не сработал дважды
         setTimeout(() => { canRestart = true; }, 1000);
     }
 
